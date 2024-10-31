@@ -12,6 +12,6 @@ A state machine app made with dash, networkx, plotly and etree
 * StateMachine.xml: contains the state machine data structure, including states, transitions, current state, guards and timeout / watchdog timers
 * StateMachineApp: Handles rendering the graph using Plotly, and updating it in response to changes in the state machine
 
-## eleted files
+## Deleted files
 * StateMachineEditor: Handles user input, editing states, transitions, and managing interactions between the components
 * GraphInterface: Handles rendering the graph using Plotly, and updating it in response to changes in the state machine
