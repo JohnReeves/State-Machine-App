@@ -1,23 +1,68 @@
-import networkx as nx
+# state_machine.py
+
+import xml.etree.ElementTree as ET
+import asyncio
+import random
+from datetime import datetime, timedelta
 
 class StateMachine:
-    def __init__(self):
-        self.graph = nx.DiGraph()
+    def __init__(self, name, xml_file):
+        self.name = name
+        self.states = {}
+        self.current_state = "idle"
+        self.events = {}
+        self.guards = {}
+        self.load_from_xml(xml_file)
 
-    def add_state(self, state_name):
-        self.graph.add_node(state_name)
+    def load_from_xml(self, xml_file):
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        machine = root.find(f".//state_machine[@name='{self.name}']")
+        if not machine:
+            raise ValueError(f"No state machine found for '{self.name}'")
 
-    def add_transition(self, from_state, to_state, action):
-        self.graph.add_edge(from_state, to_state, action=action)
+        for state in machine.find("states"):
+            self.states[state.get("name")] = {
+                "transitions": [(t.get("event"), t.get("target")) for t in state.findall("transition")]
+            }
+        
+        for event in machine.find("events"):
+            self.events[event.get("name")] = event.get("target_machine")
+        
+        for guard in machine.find("guards"):
+            self.guards[guard.get("name")] = {
+                "threshold": float(guard.get("threshold")),
+                "failure_probability": float(guard.get("failure_probability", 0))
+            }
 
-    def get_states(self):
-        return list(self.graph.nodes)
+    async def process_event(self, event_name):
+        """Process an event, handling inter-machine communication and transitions."""
+        target_machine = self.events.get(event_name)
+        if target_machine:
+            print(f"{self.name}: Sending {event_name} to {target_machine}")
+            # Notify other machine here if using an inter-process communication system
+        else:
+            print(f"{self.name}: Processing event {event_name}")
+            await self.evaluate_transitions(event_name)
 
-    def get_transitions(self):
-        return list(self.graph.edges(data=True))
+    async def evaluate_transitions(self, event_name):
+        """Evaluate and perform transitions for the current state based on event and guards."""
+        for transition_event, target_state in self.states[self.current_state]["transitions"]:
+            if transition_event == event_name and await self.check_guards(event_name):
+                self.current_state = target_state
+                print(f"{self.name}: Transitioned to {self.current_state}")
+                break
 
-    def save(self, filename):
-        nx.write_gpickle(self.graph, filename)
-
-    def load(self, filename):
-        self.graph = nx.read_gpickle(filename)
+    async def check_guards(self, event_name):
+        """Check guard conditions for sensors, timeouts, and thresholds."""
+        if event_name.startswith("timeout"):
+            timeout_secs = int(event_name.split("=")[1].strip("s"))
+            deadline = datetime.now() + timedelta(seconds=timeout_secs)
+            while datetime.now() < deadline:
+                await asyncio.sleep(0.1)
+            return True
+        elif event_name == "pressure_sensor":
+            return random.random() > self.guards["pressure_sensor"]["threshold"]
+        elif event_name == "light_sensor":
+            return random.random() > self.guards["light_sensor"]["threshold"]
+        return True
