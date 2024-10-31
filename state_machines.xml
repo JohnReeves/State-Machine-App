@@ -1,0 +1,85 @@
+<state_machines>
+    <state_machine name="Lift1">
+        <states>
+            <state name="Idle">
+                <transition event="call_floor" target="Moving" />
+                <transition event="doors_closed" target="Idle" />
+            </state>
+            <state name="Moving">
+                <transition event="arrived_at_floor" target="Doors_Opening" />
+            </state>
+            <state name="Door_Opening">
+                <transition event="doors_opened" target="Waiting" />
+            </state>
+            <state name="Waiting">
+                <guard condition="timeout=5s" target="Doors_Closing" />
+                <guard condition="sensor=pressure_sensor" target="Obstruction_Detected_Pressure" />
+                <guard condition="sensor=light_sensor" target="Obstruction_Detected_Light" />
+            </state>
+            <state name="Doors_Closing">
+                <transition event="doors_closed" target="Idle" />
+            </state>
+            <state name="Obstruction_Detected_Pressure">
+                <transition event="obstruction_removed" target="Doors_Opening" />
+            </state>
+            <state name="Obstruction_Detected_Light">
+                <transition event="obstruction_removed" target="Doors_Closing" />
+            </state>
+        </states>
+        <events>
+            <event name="call_floor" type="communication" target_machine="Lift2" />
+            <event name="arrived_at_floor" />
+            <event name="doors_opened" />
+            <event name="doors_closed" />
+            <event name="obstruction_detected_pressure" />
+            <event name="obstruction_detected_light" />
+            <event name="obstruction_removed" />
+        </events>
+        <guards>
+            <guard name="pressure_sensor" threshold="0.1" failure_probability="0.1" />
+            <guard name="light_sensor" threshold="0.7" />
+        </guards>
+    </state_machine>
+
+    <state_machine name="Lift2">
+        <states>
+            <state name="Idle">
+                <transition event="call_floor" target="Moving" />
+                <transition event="doors_closed" target="Idle" />
+            </state>
+            <state name="Moving">
+                <transition event="arrived_at_floor" target="Doors_Opening" />
+            </state>
+            <state name="Doors_Opening">
+                <transition event="doors_opened" target="Waiting" />
+            </state>
+            <state name="Waiting">
+                <guard condition="timeout=5s" target="Doors_Closing" />
+                <guard condition="sensor=pressure_sensor" target="Obstruction_Detected_Pressure" />
+                <guard condition="sensor=light_sensor" target="Obstruction_Detected_Light" />
+            </state>
+            <state name="Doors_Closing">
+                <transition event="doors_closed" target="Idel" />
+            </state>
+            <state name="Obstruction_Detected_Pressure">
+                <transition event="obstruction_removed" target="Doors_Closing" />
+            </state>
+            <state name="Obstruction_Detected_Light">
+                <transition event="obstruction_removed" target="Doors_Closing" />
+            </state>
+        </states>
+        <events>
+            <event name="call_floor" />
+            <event name="arrived_at_floor" />
+            <event name="doors_opened" />
+            <event name="doors_closed" />
+            <event name="obstruction_detected_pressure" />
+            <event name="obstruction_detected_light" />
+            <event name="obstruction_removed" />
+        </events>
+        <guards>
+            <guard name="pressure_sensor" threshold="0.1" failure_probability="0.1" />
+            <guard name="light_sensor" threshold="0.7" />
+        </guards>
+    </state_machine>
+</state_machines>
