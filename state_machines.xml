@@ -1,5 +1,5 @@
 <state_machines>
-    <state_machine name="Lift1">
+    <state_machine name="Lift1" initial="idle">
         <states>
             <state name="Idle">
                 <transition event="call_floor" target="Moving" />
@@ -8,7 +8,7 @@
             <state name="Moving">
                 <transition event="arrived_at_floor" target="Doors_Opening" />
             </state>
-            <state name="Door_Opening">
+            <state name="Doors_Opening">
                 <transition event="doors_opened" target="Waiting" />
             </state>
             <state name="Waiting">
@@ -41,7 +41,7 @@
         </guards>
     </state_machine>
 
-    <state_machine name="Lift2">
+    <state_machine name="Lift2" initial="idle">
         <states>
             <state name="Idle">
                 <transition event="call_floor" target="Moving" />
@@ -59,7 +59,7 @@
                 <guard condition="sensor=light_sensor" target="Obstruction_Detected_Light" />
             </state>
             <state name="Doors_Closing">
-                <transition event="doors_closed" target="Idel" />
+                <transition event="doors_closed" target="Idle" />
             </state>
             <state name="Obstruction_Detected_Pressure">
                 <transition event="obstruction_removed" target="Doors_Closing" />
