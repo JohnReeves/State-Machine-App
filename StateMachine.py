@@ -9,7 +9,8 @@ class StateMachine:
     def __init__(self, name, xml_file):
         self.name = name
         self.states = {}
-        self.current_state = "idle"
+        self.initial_state = None
+        self.current_state = None
         self.events = {}
         self.guards = {}
         self.load_from_xml(xml_file)
@@ -20,6 +21,9 @@ class StateMachine:
         machine = root.find(f".//state_machine[@name='{self.name}']")
         if not machine:
             raise ValueError(f"No state machine found for '{self.name}'")
+
+        self.initial_state = machine.get("initial")
+        self.current_state = self.initial_state  # Start in the initial state
 
         for state in machine.find("states"):
             self.states[state.get("name")] = {
@@ -35,6 +39,17 @@ class StateMachine:
                 "failure_probability": float(guard.get("failure_probability", 0))
             }
 
+    def reset(self):
+        """Reset the state machine to its initial state."""
+        self.current_state = self.initial_state
+
+    def goto(self, state_name):
+        """Directly set the current state to a specified state."""
+        if state_name in self.states:
+            self.current_state = state_name
+        else:
+            raise ValueError(f"State '{state_name}' does not exist in {self.name}")
+        
     async def process_event(self, event_name):
         """Process an event, handling inter-machine communication and transitions."""
         target_machine = self.events.get(event_name)
