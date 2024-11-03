@@ -9,61 +9,72 @@ import networkx as nx
 from StateMachine import StateMachine
 
 class LiftStateMachineApp:
-    def __init__(self):
-        self.state_machine1 = StateMachine("Lift1", "state_machines.xml")
-        self.state_machine2 = StateMachine("Lift2", "state_machines.xml")
+    def __init__(self, state_machine1, state_machine2):
+        self.state_machine1 = state_machine1
+        self.state_machine2 = state_machine2
         self.app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         self.setup_layout()
 
     def setup_layout(self):
         self.app.layout = dbc.Container([
-            dbc.Row([dbc.Col(html.H3("Lift State Machines"), width=12)]),
+
+            html.H3("State Machines Interface"),
             dbc.Row([
                 dbc.Col([
-                    html.Div("Lift 1 State Machine"),
+                    html.Div("Driving State Machine"),
                     dcc.Graph(id="state_machine_graph_1", figure=self.render_graph("Lift1")),
-                    # Control Column for Lift 1 (Trigger, Goto, Reset)
-                    dbc.Row([
-                        dbc.Col(dcc.Input(id="event_name", placeholder="Enter event"), width=8),
-                        dbc.Col(dbc.Button("Trigger Event", id="trigger_event_button"), width=4)
-                    ]),
-                    dbc.Row([
-                        dbc.Col(dcc.Dropdown(
-                            id="goto_state",
-                            placeholder="Select state to go to",
-                            options=[{"label": state, "value": state} for state in self.state_machine1.states.keys()]
-                        )),
-                        dbc.Col(dbc.Button("Goto State", id="goto_button"))
-                    ]),
-                    dbc.Row([dbc.Col(dbc.Button("Reset", id="reset_button"))])
                 ], width=6),
                 dbc.Col([
-                    html.Div("Lift 2 State Machine"),
+                    html.Div("Responding State Machine"),
                     dcc.Graph(id="state_machine_graph_2", figure=self.render_graph("Lift2"))
                 ], width=6),
             ]),
-            dbc.Row([
-                dbc.Col(dbc.Textarea(id='xml_editor', value=self.load_xml(), style={'width': '100%', 'height': '300px'})),
-                dbc.Col(dbc.Button("Save XML", id="save_xml")),
-            ])
+
+            dcc.Input(id="event_name", placeholder="Enter event"),
+            dbc.Button("Trigger Event", id="trigger_event_button"),
+            dcc.Dropdown(id="goto_state",
+                        placeholder="Select state to go to",
+                        options=[{"label": state, "value": state} for state in self.state_machine1.states.keys()]
+                        ),
+            dbc.Button("Goto State", id="goto_button"),
+            dbc.Button("Reset", id="reset_button"),
+
+            dbc.Textarea(id='xml_editor', value=self.load_xml(), style={'width': '100%', 'height': '300px'}),
+            dbc.Button("Save XML", id="save_xml"),
         ])
         self.setup_callbacks()
 
 
     def setup_callbacks(self):
         @self.app.callback(
-            Output("state_machine_graph_1", "figure"),
-            Input("state_machine_selector", "value")
+            [Output("state_machine_graph_1", "figure"), 
+             Output("state_machine_graph_2", "figure")],
+            Input("reset_button", "n_clicks")
         )
-        def update_graph_1(machine_name):
-            return self.render_graph("Lift1")
+        def reset_state_machine(n_clicks):
+            self.state_machine1.reset()
+            self.state_machine2.reset()
+            return self.render_graph("Lift1"), self.render_graph("Lift2")
 
         @self.app.callback(
-            Output("state_machine_graph_2", "figure"),
-            Input("state_machine_selector", "value")
+            Input("goto_button", "n_clicks"),
+            State("event_name", "value"),
+            State("machine_name", "value")
         )
-        def update_graph_2(machine_name):
-            return self.render_graph("Lift2")
+        def goto_state(n_clicks, event_name, machine_name):
+            machine = self.state_machine1 if machine_name == "Lift1" else self.state_machine2
+            if event_name:
+                machine.goto(event_name)
+            return self.render_graph("Lift1"), self.render_graph("Lift2")
+       
+        @self.app.callback(
+            Input("trigger_event_button", "n_clicks"),
+            State("event_name", "value")
+        )
+        async def trigger_event(n_clicks, event_name, machine_name):
+            machine = self.state_machine1 if machine_name == "Lift1" else self.state_machine2
+            await machine.process_event(event_name)
+            return self.render_graph("Lift1"), self.render_graph("Lift2")
 
         @self.app.callback(
             Output("xml_editor", "value"),
@@ -76,39 +87,7 @@ class LiftStateMachineApp:
             self.state_machine1.load_from_xml("state_machines.xml")
             self.state_machine2.load_from_xml("state_machines.xml")
             return xml_content
-
-        @self.app.callback(
-            [Output("state_machine_graph_1", "figure"), Output("state_machine_graph_2", "figure")],
-            Input("trigger_event_button", "n_clicks"),
-            State("event_name", "value"),
-            State("state_machine_selector", "value")
-        )
-        @self.app.callback(
-            [Output("state_machine_graph_1", "figure"), Output("state_machine_graph_2", "figure")],
-            Input("reset_button", "n_clicks"),
-        )
-        def reset_state_machine(n_clicks):
-            self.state_machine1.reset()
-            self.state_machine2.reset()
-            return self.render_graph("Lift1"), self.render_graph("Lift2")
-
-        @self.app.callback(
-            [Output("state_machine_graph_1", "figure"), Output("state_machine_graph_2", "figure")],
-            Input("goto_button", "n_clicks"),
-            State("goto_state", "value"),
-            State("state_machine_selector", "value")
-        )
-        def goto_state(n_clicks, state_name, machine_name):
-            machine = self.state_machine1 if machine_name == "Lift1" else self.state_machine2
-            if state_name:
-                machine.goto(state_name)
-            return self.render_graph("Lift1"), self.render_graph("Lift2")
-
-        async def trigger_event(n_clicks, event_name, machine_name):
-            machine = self.state_machine1 if machine_name == "Lift1" else self.state_machine2
-            await machine.process_event(event_name)
-            return self.render_graph("Lift1"), self.render_graph("Lift2")
-
+        
     def load_xml(self):
         with open("state_machines.xml", "r") as file:
             return file.read()
@@ -176,5 +155,8 @@ class LiftStateMachineApp:
         self.app.run_server(debug=True)
 
 if __name__ == "__main__":
-    app = LiftStateMachineApp()
+    state_machine1 = StateMachine("Lift1", "state_machines.xml")
+    state_machine2 = StateMachine("Lift2", "state_machines.xml")
+
+    app = LiftStateMachineApp(state_machine1, state_machine2)
     app.run()
